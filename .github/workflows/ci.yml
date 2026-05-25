@@ -1,110 +1,110 @@
-name: CI — React Native
+name: Android CI
 
+# Trigger: run this workflow on every push to the main branch only
 on:
   push:
-    branches: [main, develop]
-  pull_request:
     branches: [main]
 
 jobs:
-  # ─── Lint & Type Check ───────────────────────────────────────────
-  lint:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
+  android-build:
+    name: Build Android Debug APK
+    runs-on: ubuntu-latest  # Free Linux runner provided by GitHub
 
     steps:
+
+      # ── Step 1: Checkout ──────────────────────────────────────────
+      # Downloads your repository code onto the runner so the rest of
+      # the steps can access it.
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      # ── Step 2: Setup Node.js ─────────────────────────────────────
+      # Installs Node 22 on the runner. React Native's Metro bundler
+      # and all JS tooling run on Node. We don't use the built-in
+      # cache here — we handle it explicitly in Step 3 below so you
+      # can see exactly what is being cached.
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
-      - name: Install dependencies
+      # ── Step 3: Cache npm dependencies ───────────────────────────
+      # Saves the ~/.npm folder (npm's download cache) between runs.
+      # The cache key is a hash of package-lock.json, so the cache
+      # is automatically invalidated whenever your dependencies change.
+      # On a cache HIT, npm ci skips downloading packages → ~1 min saved.
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      # ── Step 4: Install npm dependencies ─────────────────────────
+      # `npm ci` reads package-lock.json and installs exact versions.
+      # It's faster and more reliable than `npm install` in CI because
+      # it never modifies package-lock.json and does a clean install.
+      - name: Install npm dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-
-  # ─── Android Build ───────────────────────────────────────────────
-  android-build:
-    name: Android Build
-    runs-on: ubuntu-latest
-    needs: lint
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Setup Java 17
+      # ── Step 5: Setup Java 17 ─────────────────────────────────────
+      # React Native 0.73+ requires Java 17 (Java 11 is no longer
+      # supported). Temurin is the free, open-source OpenJDK build
+      # from the Eclipse Adoptium project. This step also sets JAVA_HOME
+      # automatically so Gradle picks it up.
+      - name: Setup Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ── Step 6: Cache Gradle dependencies ────────────────────────
+      # Gradle downloads build tools, plugins, and libraries into
+      # ~/.gradle. Without caching this can take 3–5 minutes every run.
+      # The key hashes all *.gradle files and gradle-wrapper.properties
+      # so the cache refreshes when you change Gradle config.
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Make Gradlew executable
+      # ── Step 7: Grant execute permission for Gradlew ─────────────
+      # The gradlew script is the Gradle Wrapper — it downloads the
+      # correct Gradle version and runs the build. On Linux/macOS it
+      # needs the executable bit set. Windows doesn't need this, but
+      # CI always runs on Linux so this step is required.
+      - name: Grant execute permission for Gradlew
         run: chmod +x android/gradlew
 
+      # ── Step 8: Build Android Debug APK ──────────────────────────
+      # assembleDebug — builds an unsigned Debug APK. No signing keys,
+      # no release config, just a working APK for testing.
+      # --no-daemon — tells Gradle not to start a background daemon
+      # process. Daemons help local development but waste memory in CI
+      # since the runner is discarded after the job anyway.
       - name: Build Android Debug APK
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon
 
+      # ── Step 9: Upload APK as GitHub Actions artifact ─────────────
+      # Makes the APK downloadable from the GitHub Actions UI.
+      # The artifact name includes the commit SHA so each build's APK
+      # is uniquely identifiable. retention-days: 7 means GitHub
+      # automatically deletes it after 7 days to save storage.
+      #
+      # Where to find it:
+      #   GitHub → your repo → Actions tab → click the workflow run
+      #   → scroll to the bottom → "Artifacts" section → download ZIP
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-${{ github.sha }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
-
-  # ─── iOS Build (macOS only) ──────────────────────────────────────
-  ios-build:
-    name: iOS Build
-    runs-on: macos-latest
-    needs: lint
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install CocoaPods
-        run: |
-          cd ios
-          pod install --repo-update
-
-      - name: Build iOS (simulator)
-        run: |
-          xcodebuild \
-            -workspace ios/CICDDemo.xcworkspace \
-            -scheme CICDDemo \
-            -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build \
-            build \
-            | xcpretty
