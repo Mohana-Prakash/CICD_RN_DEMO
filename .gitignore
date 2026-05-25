@@ -5,12 +5,15 @@ node_modules/
 .expo/
 .expo-shared/
 
-# Android
+# Android — ignore only generated/local files, not the project itself
+android/.gradle/
+android/app/build/
 *.keystore
 !debug.keystore
 
-# iOS
-Pods/
+# iOS — ignore only generated/local files, not the project itself
+ios/Pods/
+ios/build/
 
 # Build output
 build/
