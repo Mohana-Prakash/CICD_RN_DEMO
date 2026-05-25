@@ -11,6 +11,11 @@ android/app/build/
 *.keystore
 !debug.keystore
 
+# Fastlane — ignore generated reports and Bundler's local gem cache
+android/fastlane/report.xml
+android/fastlane/README.md
+android/vendor/
+
 # iOS — ignore only generated/local files, not the project itself
 ios/Pods/
 ios/build/

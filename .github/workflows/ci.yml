@@ -16,28 +16,16 @@ jobs:
     steps:
 
       # ── Step 1: Checkout ──────────────────────────────────────────
-      # Downloads your repository code onto the runner so the rest of
-      # the steps can access it.
       - name: Checkout code
         uses: actions/checkout@v4
 
       # ── Step 2: Setup Node.js ─────────────────────────────────────
-      # Installs Node 20 LTS on the runner. React Native's Metro bundler
-      # and all JS tooling run on Node. We use Node 20 LTS (Long Term
-      # Support) because it is the most stable and well-tested version
-      # with React Native. We don't use the built-in cache here —
-      # we handle it explicitly in Step 3 below so you can see exactly
-      # what is being cached.
       - name: Setup Node.js 20 LTS
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       # ── Step 3: Cache npm dependencies ───────────────────────────
-      # Saves the ~/.npm folder (npm's download cache) between runs.
-      # The cache key is a hash of package-lock.json, so the cache
-      # is automatically invalidated whenever your dependencies change.
-      # On a cache HIT, npm ci skips downloading packages → ~1 min saved.
       - name: Cache npm dependencies
         uses: actions/cache@v4
         with:
@@ -47,20 +35,10 @@ jobs:
             ${{ runner.os }}-npm-
 
       # ── Step 4: Install npm dependencies ─────────────────────────
-      # `npm ci` reads package-lock.json and installs exact versions.
-      # It's faster and more reliable than `npm install` in CI because
-      # it never modifies package-lock.json and does a clean install.
       - name: Install npm dependencies
         run: npm ci
 
       # ── Step 5: Setup Java 17 ─────────────────────────────────────
-      # React Native 0.73+ requires Java 17 (Java 11 is no longer
-      # supported). Temurin is the free, open-source OpenJDK build
-      # from the Eclipse Adoptium project. This step also sets JAVA_HOME
-      # automatically so Gradle picks it up.
-      # cache: gradle — setup-java has built-in Gradle caching support.
-      # It caches ~/.gradle/caches and ~/.gradle/wrapper automatically,
-      # so a separate Cache Gradle step is not needed.
       - name: Setup Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:
@@ -68,35 +46,37 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # ── Step 6: Grant execute permission for Gradlew ─────────────
-      # The gradlew script is the Gradle Wrapper — it downloads the
-      # correct Gradle version and runs the build. On Linux/macOS it
-      # needs the executable bit set. Windows doesn't need this, but
-      # CI always runs on Linux so this step is required.
+      # ── Step 6: Setup Ruby + Bundler + Fastlane ───────────────────
+      # ruby/setup-ruby reads android/Gemfile, runs `bundle install`,
+      # and caches the gems between runs so re-installs are fast.
+      # bundler-cache: true means the action handles caching for you —
+      # no need for a separate Cache step for Ruby gems.
+      - name: Setup Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: android
+
+      # ── Step 7: Grant execute permission for Gradlew ─────────────
+      # Fastlane calls ./gradlew internally — it still needs the
+      # executable bit set on Linux.
       - name: Grant execute permission for Gradlew
         run: chmod +x android/gradlew
 
-      # ── Step 7: Build Android Debug APK ──────────────────────────
-      # assembleDebug — builds an unsigned Debug APK. No signing keys,
-      # no release config, just a working APK for testing.
-      # --no-daemon — tells Gradle not to start a background daemon
-      # process. Daemons help local development but waste memory in CI
-      # since the runner is discarded after the job anyway.
+      # ── Step 8: Build Android Debug APK via Fastlane ─────────────
+      # `bundle exec fastlane build_debug` runs the lane defined in
+      # android/fastlane/Fastfile. Fastlane calls:
+      #   ./gradlew clean
+      #   ./gradlew assembleDebug
+      # Using `bundle exec` ensures the exact Fastlane version pinned
+      # in Gemfile.lock is used, not whatever is installed system-wide.
       - name: Build Android Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon
+          bundle exec fastlane build_debug
 
-      # ── Step 8: Upload APK as GitHub Actions artifact ─────────────
-      # Makes the APK downloadable from the GitHub Actions UI.
-      # The artifact is named simply "app-debug" — easy to find and
-      # download without needing to know the commit SHA.
-      # retention-days: 7 means GitHub automatically deletes it after
-      # 7 days to save storage.
-      #
-      # Where to find it:
-      #   GitHub → your repo → Actions tab → click the workflow run
-      #   → scroll to the bottom → "Artifacts" section → download ZIP
+      # ── Step 9: Upload APK as GitHub Actions artifact ─────────────
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

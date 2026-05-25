@@ -1,0 +1,22 @@
+default_platform(:android)
+
+platform :android do
+
+  desc "Clean the build directory and compile a debug APK"
+  lane :build_debug do
+
+    # Step 1 — wipe any stale build output from previous runs.
+    # Equivalent to: ./gradlew clean
+    gradle(task: "clean")
+
+    # Step 2 — compile the debug APK.
+    # Fastlane expands this to: ./gradlew assembleDebug
+    # The APK lands at: app/build/outputs/apk/debug/app-debug.apk
+    gradle(
+      task:       "assemble",
+      build_type: "Debug"
+    )
+
+  end
+
+end

@@ -1,0 +1,2 @@
+json_key_file("") # Path to your Play Store JSON key — leave blank until you set up the Play Store
+package_name("com.cicddemo")
