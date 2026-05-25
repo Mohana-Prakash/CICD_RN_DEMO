@@ -6,12 +6,10 @@ node_modules/
 .expo-shared/
 
 # Android
-android/
 *.keystore
 !debug.keystore
 
 # iOS
-ios/
 Pods/
 
 # Build output
