@@ -5,16 +5,38 @@ platform :android do
   desc "Clean the build directory and compile a debug APK"
   lane :build_debug do
 
-    # Step 1 — wipe any stale build output from previous runs.
-    # Equivalent to: ./gradlew clean
+    # Wipe stale build output. Equivalent to: ./gradlew clean
     gradle(task: "clean")
 
-    # Step 2 — compile the debug APK.
-    # Fastlane expands this to: ./gradlew assembleDebug
-    # The APK lands at: app/build/outputs/apk/debug/app-debug.apk
+    # Compile the debug APK. Equivalent to: ./gradlew assembleDebug
+    # Output: app/build/outputs/apk/debug/app-debug.apk
     gradle(
       task:       "assemble",
       build_type: "Debug"
+    )
+
+  end
+
+  desc "Build debug APK and upload to Firebase App Distribution"
+  lane :beta do
+
+    # Step 1 — clean + build (same as build_debug)
+    gradle(task: "clean")
+    gradle(
+      task:       "assemble",
+      build_type: "Debug"
+    )
+
+    # Step 2 — upload the APK to Firebase App Distribution.
+    # service_credentials_file points to a JSON key written by CI from
+    # the FIREBASE_SERVICE_ACCOUNT secret. The file is never committed.
+    firebase_app_distribution(
+      app:                      "1:149833108494:android:abd47e9c18823b4983005f",
+      testers:                  "mohanareact@gmail.com",
+      release_notes:            "Automated CI build from GitHub Actions",
+      service_credentials_file: "firebase-service-account.json",
+      android_artifact_type:    "APK",
+      android_artifact_path:    "app/build/outputs/apk/debug/app-debug.apk"
     )
 
   end

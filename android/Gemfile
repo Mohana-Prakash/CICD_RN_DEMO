@@ -1,3 +1,8 @@
 source "https://rubygems.org"
 
 gem "fastlane"
+
+# Load Fastlane plugins declared in fastlane/Pluginfile.
+# Bundler needs this line so `bundle install` picks up plugin gems.
+plugins_path = File.join(File.dirname(__FILE__), 'fastlane', 'Pluginfile')
+eval_gemfile(plugins_path) if File.exist?(plugins_path)
