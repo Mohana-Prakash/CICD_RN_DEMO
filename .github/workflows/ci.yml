@@ -53,7 +53,17 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # ── Step 5: Setup Java 17 ─────────────────────────────────────
+      # ── Step 5: Generate Android project files ───────────────────
+      # The android/ folder is not committed (it's generated code).
+      # We scaffold a fresh RN 0.73.6 project in a temp directory and
+      # copy its android/ folder into the workspace so Gradle has the
+      # build files it needs.
+      - name: Generate Android project files
+        run: |
+          npx react-native@0.73.6 init TempRN --skip-install --directory /tmp/TempRN
+          cp -r /tmp/TempRN/android ./android
+
+      # ── Step 7: Setup Java 17 ─────────────────────────────────────
       # React Native 0.73+ requires Java 17 (Java 11 is no longer
       # supported). Temurin is the free, open-source OpenJDK build
       # from the Eclipse Adoptium project. This step also sets JAVA_HOME
@@ -68,7 +78,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # ── Step 6: Grant execute permission for Gradlew ─────────────
+      # ── Step 8: Grant execute permission for Gradlew ─────────────
       # The gradlew script is the Gradle Wrapper — it downloads the
       # correct Gradle version and runs the build. On Linux/macOS it
       # needs the executable bit set. Windows doesn't need this, but
@@ -76,7 +86,7 @@ jobs:
       - name: Grant execute permission for Gradlew
         run: chmod +x android/gradlew
 
-      # ── Step 7: Build Android Debug APK ──────────────────────────
+      # ── Step 9: Build Android Debug APK ──────────────────────────
       # assembleDebug — builds an unsigned Debug APK. No signing keys,
       # no release config, just a working APK for testing.
       # --no-daemon — tells Gradle not to start a background daemon
@@ -87,7 +97,7 @@ jobs:
           cd android
           ./gradlew assembleDebug --no-daemon
 
-      # ── Step 8: Upload APK as GitHub Actions artifact ─────────────
+      # ── Step 10: Upload APK as GitHub Actions artifact ───────────
       # Makes the APK downloadable from the GitHub Actions UI.
       # The artifact is named simply "app-debug" — easy to find and
       # download without needing to know the commit SHA.
