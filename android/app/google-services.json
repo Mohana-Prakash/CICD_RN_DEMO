@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "149833108494",
+    "project_id": "rn-cicd-learning",
+    "storage_bucket": "rn-cicd-learning.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149833108494:android:abd47e9c18823b4983005f",
+        "android_client_info": {
+          "package_name": "com.cicddemo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5B3ZXXnvGKnB9209r1InDTGEepWnPcOE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
