@@ -16,8 +16,9 @@ android/fastlane/report.xml
 android/fastlane/README.md
 android/vendor/
 
-# Firebase — credentials file is written at runtime from a CI secret, never committed
+# Firebase — both files are written at runtime from CI secrets, never committed
 android/firebase-service-account.json
+android/app/google-services.json
 
 # iOS — ignore only generated/local files, not the project itself
 ios/Pods/

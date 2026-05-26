@@ -60,15 +60,13 @@ jobs:
         run: chmod +x android/gradlew
 
       # ── Step 8: Write Firebase credentials ────────────────────────
-      # The FIREBASE_SERVICE_ACCOUNT secret holds the full JSON of a
-      # Google service account that has the Firebase App Distribution
-      # Admin role. We write it to a file that Fastlane reads, then
-      # delete it immediately after the upload (Step 10).
-      # The file is also listed in .gitignore so it can never be committed.
       - name: Write Firebase credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: echo "$FIREBASE_SERVICE_ACCOUNT" > android/firebase-service-account.json
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > android/firebase-service-account.json
+          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       # ── Step 9: Build and distribute via Fastlane ─────────────────
       # The `beta` lane in android/fastlane/Fastfile:
@@ -85,7 +83,9 @@ jobs:
       # credentials file is never left on the runner's disk.
       - name: Remove Firebase credentials
         if: always()
-        run: rm -f android/firebase-service-account.json
+        run: |
+          rm -f android/firebase-service-account.json
+          rm -f android/app/google-services.json
 
       # ── Step 11: Upload APK as GitHub Actions artifact ────────────
       # Keeps the APK downloadable from the Actions UI for 7 days,
