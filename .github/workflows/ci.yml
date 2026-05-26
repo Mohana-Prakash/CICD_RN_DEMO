@@ -3,10 +3,8 @@ name: Android CI
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  workflow_dispatch:
 
 jobs:
   android-build:
@@ -14,83 +12,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # ── Step 1: Checkout ──────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Step 2: Setup Node.js ─────────────────────────────────────
-      - name: Setup Node.js 20 LTS
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
-      # ── Step 3: Cache npm dependencies ───────────────────────────
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      # ── Step 4: Install npm dependencies ─────────────────────────
       - name: Install npm dependencies
         run: npm ci
 
-      # ── Step 5: Setup Java 17 ─────────────────────────────────────
-      - name: Setup Java 17 (Temurin)
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
           cache: gradle
 
-      # ── Step 6: Setup Ruby + Bundler + Fastlane ───────────────────
-      # bundler-cache: true installs gems from android/Gemfile (including
-      # the firebase_app_distribution plugin) and caches them between runs.
-      - name: Setup Ruby and Fastlane
+      - name: Setup Ruby + Fastlane
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: "3.2"
           bundler-cache: true
           working-directory: android
 
-      # ── Step 7: Grant execute permission for Gradlew ─────────────
       - name: Grant execute permission for Gradlew
         run: chmod +x android/gradlew
 
-      # ── Step 8: Write Firebase credentials ────────────────────────
       - name: Write Firebase credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           echo "$FIREBASE_SERVICE_ACCOUNT" > android/firebase-service-account.json
-          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
-      # ── Step 9: Build and distribute via Fastlane ─────────────────
-      # The `beta` lane in android/fastlane/Fastfile:
-      #   1. ./gradlew clean
-      #   2. ./gradlew assembleDebug
-      #   3. Uploads the APK to Firebase App Distribution
       - name: Build and distribute APK
         run: |
           cd android
           bundle exec fastlane beta
 
-      # ── Step 10: Remove Firebase credentials ──────────────────────
-      # Always runs — even if the build or upload failed — so the
-      # credentials file is never left on the runner's disk.
       - name: Remove Firebase credentials
         if: always()
         run: |
           rm -f android/firebase-service-account.json
-          rm -f android/app/google-services.json
 
-      # ── Step 11: Upload APK as GitHub Actions artifact ────────────
-      # Keeps the APK downloadable from the Actions UI for 7 days,
-      # independently of Firebase App Distribution.
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
